@@ -1,0 +1,54 @@
+{
+  "patients": [
+    {
+      "mrn": "468614",
+      "firstName": "Preceptor 35",
+      "lastName": "Test-CSI",
+      "location": "Chattanooga East",
+      "date": "2026-01-05",
+      "time": "09:45",
+      "doctor": "NagireddyS",
+      "status": "Scheduled"
+    },
+    {
+      "mrn": "468614",
+      "firstName": "Preceptor 35",
+      "lastName": "Test-CSI",
+      "location": "Dalton",
+      "date": "2026-01-13",
+      "time": "10:00",
+      "doctor": "VermaM",
+      "status": "Scheduled"
+    },
+    {
+      "mrn": "468614",
+      "firstName": "Preceptor 35",
+      "lastName": "Test-CSI",
+      "location": "Franklin",
+      "date": "2026-01-21",
+      "time": "10:15",
+      "doctor": "BauerTM",
+      "status": "Scheduled"
+    },
+    {
+      "mrn": "468614",
+      "firstName": "Preceptor 35",
+      "lastName": "Test-CSI",
+      "location": "Lebanon",
+      "date": "2026-01-29",
+      "time": "11:00",
+      "doctor": "PeytonJ",
+      "status": "Scheduled"
+    },
+    {
+      "mrn": "468614",
+      "firstName": "Preceptor 35",
+      "lastName": "Test-CSI",
+      "location": "Gallatin",
+      "date": "2026-02-06",
+      "time": "13:00",
+      "doctor": "KolliparaR",
+      "status": "Scheduled"
+    }
+  ]
+}

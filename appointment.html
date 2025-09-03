@@ -1,0 +1,313 @@
+<!-- appointment.html (points to EC2 35.90.8.141 via NGINX; sends x-api-key)
+     If you later get HTTPS + domain, you can change DEFAULT_HOST to https://api.yourdomain.com
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Appointment Scheduler</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=900, initial-scale=1" />
+  <style>
+    body { font-family: 'Segoe UI','Arial',sans-serif; background: linear-gradient(120deg,#f5f7fa 0%,#c3cfe2 100%); min-height: 100vh; margin:0; }
+    h2 { text-align:center; margin-top:40px; font-size:2.2rem; color:#273c75; letter-spacing:1px; }
+    table { border-collapse:separate; border-spacing:0; width:96%; margin:40px auto 0; background:#fff; box-shadow:0 6px 32px #adb5bd77; border-radius:14px; overflow:hidden; }
+    th, td { padding:16px 10px; text-align:center; }
+    th { background:#f5f6fa; font-size:1.08rem; letter-spacing:.5px; color:#353b48; }
+    td { font-size:1.01rem; }
+    tr:nth-child(even) { background:#f7faff; }
+    tr:hover { background:#e9f0fb; }
+    .status-cell { font-weight:600; border-radius:8px; padding:6px 16px; background:#fef8e7; color:#8f6600; transition:background .3s; }
+    .scheduled { background:#ffeaa7; color:#8f6600; }
+    .rescheduled { background:#caffbf; color:#215a21; }
+    .cancelled { background:#ffadad; color:#721c24; }
+    button { font-family:inherit; font-size:1rem; border-radius:6px; border:none; outline:none; padding:8px 17px; margin:0 2px; transition:background .2s, color .2s, box-shadow .2s; box-shadow:0 2px 8px #ccc3; cursor:pointer; }
+    .action-btn { background:#f0f4ff; color:#3a86ff; border:1px solid #3a86ff44; }
+    .action-btn:hover { background:#e3ecff; }
+    .cancel-btn { background:#fff0f0; color:#ff414d; border:1px solid #ff414d33; }
+    .cancel-btn:hover { background:#ffeaea; }
+    .slot-btn { margin:7px 5px 7px 0; padding:10px 22px; font-size:1.06em; font-weight:500; color:#2979ff; background:#ecf2fd; border:1.5px solid #a3baff; border-radius:9px; box-shadow:0 2px 10px #3a86ff22; cursor:pointer; transition:background .17s, color .18s; }
+    .slot-btn.selected, .slot-btn:active { background:#2979ff; color:#fff; border:1.5px solid #2979ff; }
+    .slot-btn:hover { background:#d2e6ff; }
+    .toast { position:fixed; bottom:48px; right:52px; background:#23282f; color:#fff; padding:18px 34px; border-radius:7px; font-size:1.12em; opacity:0; pointer-events:none; z-index:2000; transition:opacity .2s, transform .3s; box-shadow:0 4px 22px #1114; transform:translateY(30px); }
+    .toast.show { opacity:.98; pointer-events:auto; transform:translateY(0); }
+    #actionModal { display:none; position:fixed; z-index:1200; inset:0; background:rgba(22,34,55,.28); justify-content:center; align-items:center; animation:fadeInBg .25s; }
+    @keyframes fadeInBg { from { background:rgba(22,34,55,0);} to { background:rgba(22,34,55,.28);} }
+    #modalBox { background:#fff; padding:2.4rem 2.9rem; border-radius:17px; min-width:335px; max-width:96vw; box-shadow:0 8px 38px #2222; position:relative; animation:popIn .24s cubic-bezier(.75,-0.02,.34,1.08); }
+    @keyframes popIn { from { transform:scale(.86);} to { transform:scale(1);} }
+    #modalTitle { font-size:1.32rem; color:#2d3436; margin-bottom:1rem; text-align:center; letter-spacing:.5px; }
+    #modalContent label { font-size:1rem; color:#444; margin:13px 0 8px; display:block; letter-spacing:.5px; }
+    #modalContent input[type="date"], #modalContent input[type="time"] { font-size:1rem; padding:7px 14px; border-radius:5px; border:1px solid #c2c2c2; margin-top:3px; margin-bottom:12px; outline:none; transition:border .2s; }
+    #modalContent input[type="date"]:focus, #modalContent input[type="time"]:focus { border:1.4px solid #00b4d8; }
+    #modalBox button { min-width:88px; font-size:1.01rem; padding:9px 0; margin:0 6px; }
+    #modalCancel { background:#f1f1f1; color:#888; }
+    #modalCancel:hover { background:#eaeaea; }
+    #modalConfirm { background:#1a91f0; color:#fff; }
+    #modalConfirm:hover { background:#166ab4; }
+  </style>
+</head>
+<body>
+  <h2>Appointment Scheduler</h2>
+  <table>
+    <tr>
+      <th>MRN</th>
+      <th>First Name</th>
+      <th>Last Name</th>
+      <th>Appointment Date</th>
+      <th>MD Doctor</th>
+      <th>Location</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+    <tbody id="apptbody"></tbody>
+  </table>
+
+  <div id="toast" class="toast"></div>
+
+  <div id="actionModal">
+    <div id="modalBox">
+      <h3 id="modalTitle"></h3>
+      <div id="modalContent"></div>
+      <div style="text-align:right; margin-top:1.7rem;">
+        <button id="modalCancel">Cancel</button>
+        <button id="modalConfirm">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="outputModal" style="display:none; position:fixed; inset:0; background:rgba(22,34,55,.32); z-index:2500; justify-content:center; align-items:center;">
+    <div style="background:#fff; padding:2.4rem; border-radius:17px; min-width:340px; max-width:90vw; max-height:85vh; overflow:auto; box-shadow:0 8px 38px #2222; position:relative;">
+      <h3 style="margin-top:0; color:#273c75; text-align:center;">Automation Result</h3>
+      <pre id="outputText" style="background:#f7f8fa; color:#23282f; border-radius:8px; padding:16px; font-size:1.02em; white-space:pre-wrap; max-width:80vw; max-height:60vh; overflow:auto;"></pre>
+      <div style="text-align:right; margin-top:1.2rem;">
+        <button onclick="closeOutputModal()" style="background:#1a91f0; color:#fff; border:none; border-radius:7px; padding:9px 30px; font-size:1.1em; font-weight:500; cursor:pointer;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ====== ENDPOINT CONFIG ======
+    const qp = new URLSearchParams(location.search);
+
+    // Use NGINX on EC2 (HTTP for now). Later you can switch to HTTPS + domain.
+    const DEFAULT_HOST = 'http://35.90.8.141';
+
+    const CONFIG = {
+      PROXY_URL:   (qp.get('proxy')   || localStorage.getItem('proxy_url')   || DEFAULT_HOST).replace(/\/$/,''),
+      BACKEND_URL: (qp.get('backend') || localStorage.getItem('backend_url') || DEFAULT_HOST).replace(/\/$/,''),
+    };
+    if (qp.get('proxy'))   localStorage.setItem('proxy_url',   CONFIG.PROXY_URL);
+    if (qp.get('backend')) localStorage.setItem('backend_url', CONFIG.BACKEND_URL);
+
+    // DEMO API KEY — must match API_KEY in both Node servers on EC2
+    const DEMO_API_KEY = 'change-me-very-secret';
+
+    // ====== UTILITIES ======
+    function showToast(msg, color) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.background = color || '#23282f';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+    function showModal(title, contentHtml, onConfirm, onShow) {
+      document.getElementById('modalTitle').innerText = title;
+      document.getElementById('modalContent').innerHTML = contentHtml;
+      document.getElementById('actionModal').style.display = 'flex';
+      document.getElementById('modalConfirm').onclick = () => { onConfirm && onConfirm(); document.getElementById('actionModal').style.display='none'; };
+      document.getElementById('modalCancel').onclick  = () => { document.getElementById('actionModal').style.display='none'; };
+      if (onShow) setTimeout(onShow, 50);
+    }
+    function showOutputModal(content) {
+      document.getElementById('outputText').innerText = content;
+      document.getElementById('outputModal').style.display = 'flex';
+    }
+    function closeOutputModal() { document.getElementById('outputModal').style.display = 'none'; }
+
+    async function fetchWithTimeout(url, opts = {}, timeoutMs = 20000) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const resp = await fetch(url, { ...opts, signal: ctrl.signal });
+        const text = await resp.text();
+        let data; try { data = JSON.parse(text); } catch { data = text; }
+        if (!resp.ok) throw new Error((data && (data.message || data.error)) || `HTTP ${resp.status}`);
+        return data;
+      } finally { clearTimeout(t); }
+    }
+
+    // ====== PAGE INIT ======
+    window.onload = function() {
+      fetch('appointments_fixed.json')
+        .then(r => r.json())
+        .then(data => {
+          const tbody = document.getElementById('apptbody');
+          window.appointments = [];
+          tbody.innerHTML = '';
+          for (let [i, appt] of data.patients.entries()) {
+            let { mrn, firstName:first, lastName:last, doctor, date, location='', status="Scheduled", time } = appt;
+            window.appointments.push({ mrn, first, last, doctor, date, location, status, time });
+            tbody.insertAdjacentHTML('beforeend', `
+              <tr id="row${i+1}">
+                <td>${mrn}</td>
+                <td>${first}</td>
+                <td>${last}</td>
+                <td><input type="date" id="date${i+1}" value="${date}" disabled></td>
+                <td id="doctor${i+1}">${doctor}</td>
+                <td id="location${i+1}">${location}</td>
+                <td id="status${i+1}" class="status-cell ${status.toLowerCase()}">${status}</td>
+                <td>
+                  <button class="action-btn" onclick="reschedule(${i+1})" ${status!=='Scheduled'?'disabled':''}>Reschedule</button>
+                  <button class="cancel-btn" onclick="cancel(${i+1})" ${status!=='Scheduled'?'disabled':''}>Cancel</button>
+                </td>
+              </tr>
+            `);
+          }
+        })
+        .catch(err => showOutputModal('Failed to load appointments_fixed.json:\n' + (err?.message || err)));
+    };
+
+    // ====== RESCHEDULE ======
+    function reschedule(row) {
+      const idx = row - 1;
+      const appt = window.appointments[idx];
+      showModal(
+        "Reschedule Appointment",
+        `
+        <div style="margin-bottom:8px;">
+          <b>${appt.first} ${appt.last}</b><br>
+          Doctor: ${appt.doctor}<br>
+          Location: ${appt.location}<br>
+          <span style="font-size:.98em;color:#888;">Original: ${appt.date}</span>
+        </div>
+        <label for="newDate">New Date:</label>
+        <input type="date" id="newDate" min="${new Date().toISOString().split('T')[0]}" required>
+        <div style="margin-top:15px;">
+          <button id="showSlotsBtn" style="padding:8px 22px;font-size:1.04em;background:#2979ff;color:#fff;border:none;border-radius:7px;box-shadow:0 2px 10px #3a86ff22;cursor:pointer;">Show Available Time Slots</button>
+        </div>
+        <div id="slotResults" style="margin-top:20px;"></div>
+        `,
+        null,
+        function() {
+          document.getElementById('newDate').value = appt.date;
+          document.getElementById('showSlotsBtn').onclick = async function(e) {
+            e.preventDefault();
+            const newDate = document.getElementById('newDate').value;
+            if (!newDate) return showToast("Please select a date.", "#ef5350");
+            const results = document.getElementById('slotResults');
+            results.innerHTML = `<div style="padding:18px 0;text-align:center;"><span style="color:#3a86ff;font-size:1.1em;font-weight:500;">Finding available times...</span></div>`;
+            this.disabled = true;
+
+            const formData = new FormData();
+            formData.append('date', newDate);
+            formData.append('location', appt.location);
+            formData.append('md', appt.doctor);
+
+            try {
+              const data = await fetchWithTimeout(
+                `${CONFIG.PROXY_URL}/api/schedule/`,
+                {
+                  method: 'POST',
+                  headers: { 'x-api-key': DEMO_API_KEY }, // send API key
+                  // Do NOT set Content-Type with FormData
+                  body: formData
+                },
+                25000
+              );
+
+              const html = typeof data === 'string' ? data : data.html;
+              if (!html) throw new Error((data && (data.message || data.error)) || 'No response');
+
+              const times = [];
+              const timeRegex = /<td[^>]*>(.*?)<\/td>/g;
+              let m; while ((m = timeRegex.exec(html)) !== null) {
+                const slot = m[1].replace(/<.*?>/g, '').trim();
+                if (slot) times.push(slot);
+              }
+
+              results.innerHTML = times.length
+                ? `<div style="margin-bottom:8px;font-weight:500;">Select a time slot:</div>` +
+                  times.map(t => `<button class="slot-btn" onclick="selectSlot('${encodeURIComponent(t)}','${newDate}',${idx})">${t}</button>`).join('')
+                : `<div style="color:#e74c3c;font-weight:500;">No available slots found.</div>`;
+            } catch (err) {
+              results.innerHTML = `<div style="color:#e74c3c;font-weight:500;">Failed to get available slots: ${(err && err.message) || err}</div>`;
+            } finally {
+              this.disabled = false;
+            }
+          };
+        }
+      );
+    }
+
+    window.selectSlot = function(slotEncoded, newDate, apptIdx) {
+      const slot = decodeURIComponent(slotEncoded);
+      const timeMatch = slot.match(/(\d{2}:\d{2})/);
+      const newTime = timeMatch ? timeMatch[1] : '';
+      const appt = window.appointments[apptIdx];
+      appt.time = newTime;
+      saveToInputJSON(appt, newDate);
+      showToast(`Selected: ${slot} — Automation triggered!`, "#00b894");
+      document.getElementById('actionModal').style.display = 'none';
+    };
+
+    // ====== CANCEL ======
+    function cancel(row) {
+      const appt = window.appointments[row - 1];
+      saveToInputJSON(appt);
+      showToast("Cancel request submitted for automation!", "#ff7675");
+    }
+
+    // Optional viewer if backend exposes /playwright-output
+    function fetchPlaywrightOutputAndShow() {
+      fetchWithTimeout(`${CONFIG.BACKEND_URL}/playwright-output`, {}, 10000)
+        .then(content => showOutputModal(typeof content === 'string' ? content : JSON.stringify(content, null, 2)))
+        .catch(err => showOutputModal('Failed to fetch automation result.\n' + (err?.message || err)));
+    }
+
+    // ====== HELPERS ======
+    function formatSchedulerDate(dateStr) {
+      if (!dateStr) return "";
+      const p = dateStr.split('-'); if (p.length !== 3) return dateStr;
+      const [y,m,d] = p.map(x => parseInt(x,10));
+      const dt = new Date(y, m-1, d);
+      const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+      return `${days[dt.getDay()]} ${m}/${String(d).padStart(2,'0')}/`;
+    }
+
+    // schedulerDate is ALWAYS from the original UI date (appt.date)
+    function saveToInputJSON(appt, newDate = null) {
+      const jsonToSend = {
+        site: "https://secure31.oncoemr.com",
+        email: "Shridar.iyengar@smirta.com",
+        password: "Ssitest#45678",
+        location: appt.location,
+        patientId: appt.mrn,
+        appointmentTime: appt.time,
+        schedulerDate: formatSchedulerDate(appt.date),
+        rescheduleDate: newDate || appt.date,
+        lastName: appt.lastName || appt.last,
+        firstName: appt.firstName || appt.first
+      };
+
+      fetchWithTimeout(`${CONFIG.BACKEND_URL}/api/submit-appointment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': DEMO_API_KEY  // send API key
+        },
+        body: JSON.stringify(jsonToSend)
+      }, 60000)
+      .then(result => {
+        if (result && result.status === "success") {
+          const out = typeof result.output === 'string' ? result.output : JSON.stringify(result.output, null, 2);
+          showOutputModal("Automation succeeded:\n" + out);
+        } else {
+          const msg = (result && (result.error || result.message)) || 'Unknown error';
+          showOutputModal("Automation failed:\n" + msg);
+        }
+      })
+      .catch(err => showOutputModal("Network error: " + (err?.message || err)));
+    }
+  </script>
+</body>
+</html>
+
