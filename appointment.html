@@ -146,7 +146,7 @@
           window.appointments = [];
           tbody.innerHTML = '';
           for (let [i, appt] of data.patients.entries()) {
-            let { mrn, firstName:first, lastName:last, doctor, doctor_name, date, location='', location_name, status="Scheduled", time } = appt;
+            let { mrn, firstName:first, lastName:last, doctor, doctor_name, date, location='', location_name, status="Scheduled", time, action = '' } = appt;
             window.appointments.push({ mrn, first, last, doctor, doctor_name, date, location, location_name, status, time });
             tbody.insertAdjacentHTML('beforeend', `
               <tr id="row${i+1}">
@@ -230,7 +230,7 @@
 
               results.innerHTML = times.length
                 ? `<div style="margin-bottom:8px;font-weight:500;">Select a time slot:</div>` +
-                  times.map(t => `<button class="slot-btn" onclick="selectSlot('${encodeURIComponent(t)}','${newDate}',${idx})">${t}</button>`).join('')
+                  times.map(t => `<button class="slot-btn" onclick="selectSlot('${encodeURIComponent(t)}','${newDate}',${idx}, 'reschedule')">${t}</button>`).join('')
                 : `<div style="color:#e74c3c;font-weight:500;">No available slots found.</div>`;
             } catch (err) {
               results.innerHTML = `<div style="color:#e74c3c;font-weight:500;">Failed to get available slots: ${(err && err.message) || err}</div>`;
@@ -242,11 +242,13 @@
       );
     }
 
-    window.selectSlot = function(slotEncoded, newDate, apptIdx) {
+    window.selectSlot = function(slotEncoded, newDate, apptIdx, command) {
       const slot = decodeURIComponent(slotEncoded);
       const timeMatch = slot.match(/(\d{2}:\d{2})/);
       const newTime = timeMatch ? timeMatch[1] : '';
       const appt = window.appointments[apptIdx];
+      const action = command;
+      appt.action = action;   
       appt.time = newTime;
       saveToInputJSON(appt, newDate);
       showToast(`Selected: ${slot} — Automation triggered!`, "#00b894");
