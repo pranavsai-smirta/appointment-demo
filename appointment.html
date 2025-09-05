@@ -144,8 +144,8 @@
           window.appointments = [];
           tbody.innerHTML = '';
           for (let [i, appt] of data.patients.entries()) {
-            let { mrn, firstName:first, lastName:last, doctor, date, location='', status="Scheduled", time } = appt;
-            window.appointments.push({ mrn, first, last, doctor, date, location, status, time });
+            let { mrn, firstName:first, lastName:last, doctor, doctor_name, date, location='', location_name, status="Scheduled", time } = appt;
+            window.appointments.push({ mrn, first, last, doctor, doctor_name, date, location, location_name, status, time });
             tbody.insertAdjacentHTML('beforeend', `
               <tr id="row${i+1}">
                 <td>${mrn}</td>
@@ -153,7 +153,9 @@
                 <td>${last}</td>
                 <td><input type="date" id="date${i+1}" value="${date}" disabled></td>
                 <td id="doctor${i+1}">${doctor}</td>
+                <td id="doctor_name${i+1}">${doctor_name}</td>
                 <td id="location${i+1}">${location}</td>
+                <td id="location_name${i+1}">${location_name}</td>
                 <td id="status${i+1}" class="status-cell ${status.toLowerCase()}">${status}</td>
                 <td>
                   <button class="action-btn" onclick="reschedule(${i+1})" ${status!=='Scheduled'?'disabled':''}>Reschedule</button>
