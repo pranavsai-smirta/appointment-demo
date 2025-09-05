@@ -291,7 +291,8 @@
         schedulerDate: formatSchedulerDate(appt.date),
         rescheduleDate: newDate || appt.date,
         lastName: appt.lastName || appt.last,
-        firstName: appt.firstName || appt.first
+        firstName: appt.firstName || appt.first,
+        action: appt.action   
       };
 
       fetchWithTimeout(`${CONFIG.BACKEND_URL}/api/submit-appointment`, {
