@@ -8,7 +8,8 @@
       "location_name": "Chattanooga East",
       "date": "2026-01-05",
       "time": "09:45",
-      "doctor": "NagireddyS",
+      "doctor": "UID_KmV512892776_58",
+      "doctor_name": "NagireddyS",
       "status": "Scheduled"
     },
     {
@@ -19,7 +20,8 @@
       "location_name": "Dalton",
       "date": "2026-01-13",
       "time": "10:00",
-      "doctor": "VermaM",
+      "doctor": "UID_061W688K5BQWYDYWJP1E",
+      "doctor_name": "VermaM",
       "status": "Scheduled"
     },
     {
@@ -30,7 +32,8 @@
       "location_name": "Franklin",
       "date": "2026-01-21",
       "time": "10:15",
-      "doctor": "BauerTM",
+      "doctor": "UID_DS495175597_174",
+      "doctor_name": "BauerTM",
       "status": "Scheduled"
     },
     {
@@ -41,7 +44,8 @@
       "location_name": "Lebanon",
       "date": "2026-01-29",
       "time": "11:00",
-      "doctor": "PeytonJ",
+      "doctor": "UID_AS450268584_33",
+      "doctor_name": "PeytonJ",
       "status": "Scheduled"
     },
     {
@@ -52,7 +56,8 @@
       "location_name": "Gallatin",
       "date": "2026-02-06",
       "time": "13:00",
-      "doctor": "KolliparaR",
+      "doctor": "UID_065AJEXXB6JN9W1WEEM0",
+      "doctor_name": "KolliparaR",
       "status": "Scheduled"
     }
   ]
