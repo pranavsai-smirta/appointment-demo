@@ -258,6 +258,7 @@
     // ====== CANCEL ======
     function cancel(row) {
       const appt = window.appointments[row - 1];
+      appt.action = 'unschedule';   
       saveToInputJSON(appt);
       showToast("Cancel request submitted for automation!", "#ff7675");
     }
