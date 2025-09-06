@@ -1,6 +1,4 @@
-<!-- appointment.html (points to EC2 35.90.8.141 via NGINX; sends x-api-key)
-     If you later get HTTPS + domain, you can change DEFAULT_HOST to https://api.yourdomain.com
--->
+<!-- appointment.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -89,10 +87,7 @@
   <script>
     // ====== ENDPOINT CONFIG ======
     const qp = new URLSearchParams(location.search);
-
-    // Use NGINX on EC2 (HTTP for now). Later you can switch to HTTPS + domain.
-    const DEFAULT_HOST = 'http://35.90.8.141';
-
+    const DEFAULT_HOST = 'https://35-90-8-141.sslip.io'; // use HTTPS nginx host
     const CONFIG = {
       PROXY_URL:   (qp.get('proxy')   || localStorage.getItem('proxy_url')   || DEFAULT_HOST).replace(/\/$/,''),
       BACKEND_URL: (qp.get('backend') || localStorage.getItem('backend_url') || DEFAULT_HOST).replace(/\/$/,''),
@@ -161,7 +156,7 @@
                 <td id="status${i+1}" class="status-cell ${status.toLowerCase()}">${status}</td>
                 <td>
                   <button class="action-btn" onclick="reschedule(${i+1})" ${status!=='Scheduled'?'disabled':''}>Reschedule</button>
-                  <button class="cancel-btn" onclick="cancel(${i+1})" ${status!=='Scheduled'?'disabled':''}>Cancel</button>
+                  <button class="cancel-btn" onclick="unschedule(${i+1})" ${status!=='Scheduled'?'disabled':''}>Unscheduled</button>
                 </td>
               </tr>
             `);
@@ -170,7 +165,7 @@
         .catch(err => showOutputModal('Failed to load appointments_fixed.json:\n' + (err?.message || err)));
     };
 
-    // ====== RESCHEDULE ======
+    // ====== RESCHEDULE (unchanged) ======
     function reschedule(row) {
       const idx = row - 1;
       const appt = window.appointments[idx];
@@ -211,8 +206,7 @@
                 `${CONFIG.PROXY_URL}/api/schedule/`,
                 {
                   method: 'POST',
-                  headers: { 'x-api-key': DEMO_API_KEY }, // send API key
-                  // Do NOT set Content-Type with FormData
+                  headers: { 'x-api-key': DEMO_API_KEY },
                   body: formData
                 },
                 25000
@@ -242,31 +236,13 @@
       );
     }
 
-    window.selectSlot = function(slotEncoded, newDate, apptIdx, command) {
-      const slot = decodeURIComponent(slotEncoded);
-      const timeMatch = slot.match(/(\d{2}:\d{2})/);
-      const newTime = timeMatch ? timeMatch[1] : '';
-      const appt = window.appointments[apptIdx];
-      const action = command;
-      appt.action = action;   
-      appt.time = newTime;
-      saveToInputJSON(appt, newDate);
-      showToast(`Selected: ${slot} — Automation triggered!`, "#00b894");
-      document.getElementById('actionModal').style.display = 'none';
-    };
-
-    // ====== CANCEL ======
-    function cancel(row) {
+    // ====== NEW: UNSCHEDULE ======
+    function unschedule(row) {
       const appt = window.appointments[row - 1];
-      saveToInputJSON(appt);
-      showToast("Cancel request submitted for automation!", "#ff7675");
-    }
-
-    // Optional viewer if backend exposes /playwright-output
-    function fetchPlaywrightOutputAndShow() {
-      fetchWithTimeout(`${CONFIG.BACKEND_URL}/playwright-output`, {}, 10000)
-        .then(content => showOutputModal(typeof content === 'string' ? content : JSON.stringify(content, null, 2)))
-        .catch(err => showOutputModal('Failed to fetch automation result.\n' + (err?.message || err)));
+      appt.action = 'unschedule'; // lower case, per your requirement
+      // For unschedule: no newDate picker; send original appt.date as unscheduleDate in payload
+      saveToInputJSON(appt, null);
+      showToast("Unscheduled request submitted for automation!", "#ff7675");
     }
 
     // ====== HELPERS ======
@@ -280,26 +256,35 @@
     }
 
     // schedulerDate is ALWAYS from the original UI date (appt.date)
+    // Builds payload for both actions:
+    //  - reschedule: includes rescheduleDate (newDate if provided)
+    //  - unschedule: includes unscheduleDate = original appt.date
     function saveToInputJSON(appt, newDate = null) {
-      const jsonToSend = {
+      const common = {
         site: "https://secure31.oncoemr.com",
         email: "Shridar.iyengar@smirta.com",
         password: "Ssitest#45678",
         location: appt.location_name,
         patientId: appt.mrn,
-        appointmentTime: appt.time,
+        appointmentTime: appt.time, // original or selected slot
         schedulerDate: formatSchedulerDate(appt.date),
-        rescheduleDate: newDate || appt.date,
         lastName: appt.lastName || appt.last,
         firstName: appt.firstName || appt.first,
-        action: appt.action   
+        action: appt.action || 'reschedule'
       };
+
+      const jsonToSend = { ...common };
+      if ((common.action || '').toLowerCase() === 'unschedule') {
+        jsonToSend.unscheduleDate = appt.date; // exact requirement
+      } else {
+        jsonToSend.rescheduleDate = newDate || appt.date;
+      }
 
       fetchWithTimeout(`${CONFIG.BACKEND_URL}/api/submit-appointment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': DEMO_API_KEY  // send API key
+          'x-api-key': DEMO_API_KEY
         },
         body: JSON.stringify(jsonToSend)
       }, 60000)
@@ -317,4 +302,3 @@
   </script>
 </body>
 </html>
-
